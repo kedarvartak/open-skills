@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "open-skills"
+version = "0.1.0"
+description = "Universal framework for portable AI agent skills"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+  { name = "Open Skills" }
+]
+
+[project.scripts]
+open-skills = "open_skills.cli:main"
+
+[tool.setuptools]
+packages = ["open_skills"]
