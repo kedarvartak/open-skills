@@ -5,5 +5,6 @@ __all__ = [
     "cli",
     "loader",
     "models",
+    "registry",
     "validator",
 ]
