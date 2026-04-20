@@ -49,6 +49,7 @@ open_skills/
   __init__.py
   adapters.py
   cli.py
+  codex_adapter.py
   loader.py
   models.py
   registry.py
@@ -77,6 +78,24 @@ Show parsed metadata:
 
 ```bash
 python3 -m open_skills.cli inspect ./skills/hello-skill
+```
+
+List skills available to the Codex adapter:
+
+```bash
+python3 -m open_skills.cli codex list --skills-dir ./installed-skills
+```
+
+Match installed skills for a task:
+
+```bash
+python3 -m open_skills.cli codex match "validate a portable skill" --skills-dir ./installed-skills
+```
+
+Render a skill into Codex-ready context:
+
+```bash
+python3 -m open_skills.cli codex render hello-skill --skills-dir ./installed-skills
 ```
 
 Publish a skill to the local registry:

@@ -3,6 +3,7 @@
 __all__ = [
     "adapters",
     "cli",
+    "codex_adapter",
     "loader",
     "models",
     "registry",

@@ -30,6 +30,25 @@ Wraps the skill package into:
 - capability checks against local execution tools
 - a local workspace resolver for assets and references
 
+The current implementation lives in `open_skills/codex_adapter.py`.
+
+It supports:
+
+- discovering valid installed skills
+- matching installed skills against a task string
+- checking whether `codex` is a declared host
+- negotiating requested capabilities against Codex defaults
+- rendering a Codex-ready context block for injection by a host, extension, or wrapper
+
+Default Codex capabilities:
+
+- `read_files`
+- `write_files`
+- `run_shell`
+- `run_python`
+
+The adapter intentionally does not execute scripts directly. It exposes script paths and capability warnings so the Codex host can decide whether to request permission or skip unsupported behavior.
+
 ## Cursor / VS Code Adapter
 
 Likely implemented as an extension or sidecar service:
