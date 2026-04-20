@@ -52,6 +52,7 @@ open_skills/
   codex_adapter.py
   loader.py
   models.py
+  registry.py
   validator.py
 skills/
   hello-skill/
@@ -97,10 +98,30 @@ Render a skill into Codex-ready context:
 python3 -m open_skills.cli codex render hello-skill --skills-dir ./installed-skills
 ```
 
+Publish a skill to the local registry:
+
+```bash
+python3 -m open_skills.cli publish ./skills/hello-skill
+```
+
+Search the local registry:
+
+```bash
+python3 -m open_skills.cli search hello
+```
+
+Install from the local registry:
+
+```bash
+python3 -m open_skills.cli install hello-skill
+```
+
+By default, the local registry lives at `.open-skills/registry` and installs go to `./installed-skills`.
+
 ## Near-Term Roadmap
 
 1. Expand the metadata contract into a versioned spec.
-2. Add packaging and registry publishing commands.
-3. Expand the Codex adapter into a live host integration.
+2. Add registry signing, provenance, and trust policies.
+3. Add host adapters for Claude-style, Codex-style, and editor-extension runtimes.
 4. Add semantic skill matching and capability negotiation.
-5. Add signatures, trust policies, and marketplace metadata.
+5. Add remote registries and marketplace sync.

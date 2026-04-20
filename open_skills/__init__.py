@@ -6,5 +6,6 @@ __all__ = [
     "codex_adapter",
     "loader",
     "models",
+    "registry",
     "validator",
 ]
