@@ -49,6 +49,7 @@ open_skills/
   __init__.py
   adapters.py
   cli.py
+  codex_adapter.py
   loader.py
   models.py
   validator.py
@@ -78,10 +79,28 @@ Show parsed metadata:
 python3 -m open_skills.cli inspect ./skills/hello-skill
 ```
 
+List skills available to the Codex adapter:
+
+```bash
+python3 -m open_skills.cli codex list --skills-dir ./installed-skills
+```
+
+Match installed skills for a task:
+
+```bash
+python3 -m open_skills.cli codex match "validate a portable skill" --skills-dir ./installed-skills
+```
+
+Render a skill into Codex-ready context:
+
+```bash
+python3 -m open_skills.cli codex render hello-skill --skills-dir ./installed-skills
+```
+
 ## Near-Term Roadmap
 
 1. Expand the metadata contract into a versioned spec.
 2. Add packaging and registry publishing commands.
-3. Add host adapters for Claude-style, Codex-style, and editor-extension runtimes.
+3. Expand the Codex adapter into a live host integration.
 4. Add semantic skill matching and capability negotiation.
 5. Add signatures, trust policies, and marketplace metadata.
