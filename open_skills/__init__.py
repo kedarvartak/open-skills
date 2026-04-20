@@ -7,5 +7,6 @@ __all__ = [
     "loader",
     "models",
     "registry",
+    "signing",
     "validator",
 ]

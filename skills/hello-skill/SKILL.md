@@ -6,6 +6,12 @@ spec_version: 0.1
 author: Open Skills
 license: MIT
 capabilities: [read_files]
+triggers:
+  - validate skill package
+  - inspect skill metadata
+  - portable skill example
+permissions:
+  - read_files:workspace:allow
 hosts: [claude-code, codex, cursor, vscode]
 dependencies: []
 ---

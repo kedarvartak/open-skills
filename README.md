@@ -23,11 +23,14 @@ A skill should be portable at the package level and adaptable at the runtime lev
 Portable pieces:
 
 - skill metadata
+- triggers
 - instructions
 - examples
 - references
 - assets
 - declared capabilities
+- declared permissions
+- optional package signatures
 
 Host-specific pieces:
 
@@ -53,6 +56,7 @@ open_skills/
   loader.py
   models.py
   registry.py
+  signing.py
   validator.py
 skills/
   hello-skill/
@@ -78,6 +82,14 @@ Show parsed metadata:
 
 ```bash
 python3 -m open_skills.cli inspect ./skills/hello-skill
+```
+
+Compute, sign, and verify a package:
+
+```bash
+python3 -m open_skills.cli digest ./skills/hello-skill
+python3 -m open_skills.cli sign ./skills/hello-skill --signer local-dev --key dev-secret
+python3 -m open_skills.cli verify ./skills/hello-skill --key dev-secret
 ```
 
 List skills available to the Codex adapter:
@@ -120,8 +132,8 @@ By default, the local registry lives at `.open-skills/registry` and installs go 
 
 ## Near-Term Roadmap
 
-1. Expand the metadata contract into a versioned spec.
-2. Add registry signing, provenance, and trust policies.
+1. Add public-key signing, provenance, and trust policies.
+2. Add remote registries and marketplace sync.
 3. Add host adapters for Claude-style, Codex-style, and editor-extension runtimes.
 4. Add semantic skill matching and capability negotiation.
 5. Add remote registries and marketplace sync.

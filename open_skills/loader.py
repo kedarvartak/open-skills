@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .models import SkillMetadata, SkillPackage
+from .models import SkillMetadata, SkillPackage, SkillPermission
 
 
 class SkillLoadError(ValueError):
@@ -28,6 +28,25 @@ def _parse_list(value: str) -> list[str]:
     return [_parse_scalar(value)]
 
 
+def _coerce_string_list(value: object) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+    return _parse_list(str(value))
+
+
+def _parse_permission(value: str) -> SkillPermission:
+    capability, *rest = [part.strip() for part in value.split(":")]
+    scope = rest[0] if len(rest) >= 1 and rest[0] else "workspace"
+    mode = rest[1] if len(rest) >= 2 and rest[1] else "ask"
+    return SkillPermission(capability=capability, scope=scope, mode=mode)
+
+
+def _parse_permissions(value: object) -> list[SkillPermission]:
+    return [_parse_permission(item) for item in _coerce_string_list(value)]
+
+
 def _parse_frontmatter(text: str) -> tuple[dict[str, object], str]:
     lines = text.splitlines()
     if not lines or lines[0].strip() != "---":
@@ -36,6 +55,8 @@ def _parse_frontmatter(text: str) -> tuple[dict[str, object], str]:
     frontmatter: dict[str, object] = {}
     end_index = None
 
+    current_list_key: str | None = None
+
     for index in range(1, len(lines)):
         line = lines[index]
         if line.strip() == "---":
@@ -43,11 +64,25 @@ def _parse_frontmatter(text: str) -> tuple[dict[str, object], str]:
             break
         if not line.strip():
             continue
+
+        stripped = line.strip()
+        if current_list_key and stripped.startswith("- "):
+            value = _parse_scalar(stripped[2:])
+            frontmatter.setdefault(current_list_key, [])
+            assert isinstance(frontmatter[current_list_key], list)
+            frontmatter[current_list_key].append(value)
+            continue
+
         if ":" not in line:
             raise SkillLoadError(f"Invalid frontmatter line: {line}")
         key, raw_value = line.split(":", 1)
         key = key.strip()
         raw_value = raw_value.strip()
+        current_list_key = None
+        if not raw_value:
+            frontmatter[key] = []
+            current_list_key = key
+            continue
         if raw_value.startswith("["):
             frontmatter[key] = _parse_list(raw_value)
         else:
@@ -82,9 +117,11 @@ def load_skill(skill_root: str | Path) -> SkillPackage:
         author=str(raw_metadata["author"]) if "author" in raw_metadata else None,
         homepage=str(raw_metadata["homepage"]) if "homepage" in raw_metadata else None,
         license=str(raw_metadata["license"]) if "license" in raw_metadata else None,
-        capabilities=list(raw_metadata.get("capabilities", [])),
-        hosts=list(raw_metadata.get("hosts", [])),
-        dependencies=list(raw_metadata.get("dependencies", [])),
+        capabilities=_coerce_string_list(raw_metadata.get("capabilities", [])),
+        triggers=_coerce_string_list(raw_metadata.get("triggers", [])),
+        permissions=_parse_permissions(raw_metadata.get("permissions", [])),
+        hosts=_coerce_string_list(raw_metadata.get("hosts", [])),
+        dependencies=_coerce_string_list(raw_metadata.get("dependencies", [])),
         raw=raw_metadata,
     )
 

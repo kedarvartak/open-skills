@@ -14,6 +14,7 @@ from .registry import (
     publish_skill,
     search_registry,
 )
+from .signing import SigningError, compute_package_digest, sign_package, verify_package_signature
 from .validator import validate_skill
 
 
@@ -29,6 +30,18 @@ def _build_parser() -> argparse.ArgumentParser:
 
     validate_parser = subparsers.add_parser("validate", help="Validate a skill package")
     validate_parser.add_argument("path", help="Path to a skill directory")
+
+    digest_parser = subparsers.add_parser("digest", help="Compute a deterministic skill package digest")
+    digest_parser.add_argument("path", help="Path to a skill directory")
+
+    sign_parser = subparsers.add_parser("sign", help="Sign a skill package with an HMAC key")
+    sign_parser.add_argument("path", help="Path to a skill directory")
+    sign_parser.add_argument("--signer", required=True, help="Signer name or identifier")
+    sign_parser.add_argument("--key", required=True, help="Signing key for this local trust domain")
+
+    verify_parser = subparsers.add_parser("verify", help="Verify a signed skill package")
+    verify_parser.add_argument("path", help="Path to a skill directory")
+    verify_parser.add_argument("--key", required=True, help="Signing key for this local trust domain")
 
     codex_parser = subparsers.add_parser("codex", help="Codex host adapter commands")
     codex_subparsers = codex_parser.add_subparsers(dest="codex_command", required=True)
@@ -129,6 +142,15 @@ def _cmd_inspect(path: str) -> int:
         "homepage": skill.metadata.homepage,
         "license": skill.metadata.license,
         "capabilities": skill.metadata.capabilities,
+        "triggers": skill.metadata.triggers,
+        "permissions": [
+            {
+                "capability": permission.capability,
+                "scope": permission.scope,
+                "mode": permission.mode,
+            }
+            for permission in skill.metadata.permissions
+        ],
         "hosts": skill.metadata.hosts,
         "dependencies": skill.metadata.dependencies,
     }
@@ -151,6 +173,44 @@ def _cmd_validate(path: str) -> int:
         return 1
 
     print(f"{Path(path).resolve()}: valid")
+    return 0
+
+
+def _cmd_digest(path: str) -> int:
+    try:
+        digest = compute_package_digest(path)
+    except SigningError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    print(digest)
+    return 0
+
+
+def _cmd_sign(path: str, signer: str, key: str) -> int:
+    try:
+        signature = sign_package(path, signer=signer, key=key)
+    except SigningError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    print(f"signed {Path(path).resolve()} as {signature.signer}")
+    print(f"digest: {signature.package_digest}")
+    return 0
+
+
+def _cmd_verify(path: str, key: str) -> int:
+    try:
+        result = verify_package_signature(path, key=key)
+    except SigningError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    if not result.ok:
+        print(f"{Path(path).resolve()}: signature invalid")
+        for error in result.errors:
+            print(f"- {error}")
+        return 1
+    print(f"{Path(path).resolve()}: signature valid")
+    print(f"signer: {result.signer}")
+    print(f"digest: {result.package_digest}")
     return 0
 
 
@@ -198,6 +258,15 @@ def _cmd_codex_render(
             "name": skill.metadata.name,
             "version": skill.metadata.version,
             "root": str(skill.root),
+            "triggers": skill.metadata.triggers,
+            "permissions": [
+                {
+                    "capability": permission.capability,
+                    "scope": permission.scope,
+                    "mode": permission.mode,
+                }
+                for permission in skill.metadata.permissions
+            ],
             "supports_host": context.supports_host,
             "supported_capabilities": context.capability_report.supported,
             "missing_capabilities": context.capability_report.missing,
@@ -211,6 +280,9 @@ def _cmd_codex_render(
         return 0
 
     print(context.prompt, end="")
+    return 0
+
+
 def _cmd_publish(path: str, registry: str, force: bool) -> int:
     try:
         release = publish_skill(path, registry, force=force)
@@ -273,6 +345,12 @@ def main() -> int:
         return _cmd_inspect(args.path)
     if args.command == "validate":
         return _cmd_validate(args.path)
+    if args.command == "digest":
+        return _cmd_digest(args.path)
+    if args.command == "sign":
+        return _cmd_sign(args.path, args.signer, args.key)
+    if args.command == "verify":
+        return _cmd_verify(args.path, args.key)
     if args.command == "codex":
         if args.codex_command == "list":
             return _cmd_codex_list(args.skills_dir)
