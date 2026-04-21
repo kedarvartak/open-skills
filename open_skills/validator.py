@@ -5,6 +5,8 @@ import re
 from .models import SkillPackage
 
 NAME_PATTERN = re.compile(r"^[a-z0-9-]{1,64}$")
+PERMISSION_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
+PERMISSION_MODES = {"allow", "ask", "deny"}
 
 
 def validate_skill(skill: SkillPackage) -> list[str]:
@@ -30,6 +32,21 @@ def validate_skill(skill: SkillPackage) -> list[str]:
     capabilities = metadata.capabilities
     if any(not item or not isinstance(item, str) for item in capabilities):
         errors.append("Capabilities must be non-empty strings")
+
+    triggers = metadata.triggers
+    if any(not item or not isinstance(item, str) for item in triggers):
+        errors.append("Triggers must be non-empty strings")
+
+    for permission in metadata.permissions:
+        if not PERMISSION_PATTERN.fullmatch(permission.capability):
+            errors.append(f"Invalid permission capability: {permission.capability}")
+        if not permission.scope:
+            errors.append(f"Permission scope is required for {permission.capability}")
+        if permission.mode not in PERMISSION_MODES:
+            errors.append(
+                f"Permission mode for {permission.capability} must be one of: "
+                + ", ".join(sorted(PERMISSION_MODES))
+            )
 
     hosts = metadata.hosts
     if any(not item or not isinstance(item, str) for item in hosts):

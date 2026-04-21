@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .loader import SkillLoadError, load_skill
-from .models import RegistryRelease, RegistrySkillRecord, SkillMetadata, SkillPackage
+from .models import RegistryRelease, RegistrySkillRecord, SkillMetadata, SkillPackage, SkillPermission
 from .validator import validate_skill
 
 
@@ -45,6 +45,16 @@ def _metadata_from_dict(payload: dict[str, object]) -> SkillMetadata:
         homepage=str(payload["homepage"]) if payload.get("homepage") is not None else None,
         license=str(payload["license"]) if payload.get("license") is not None else None,
         capabilities=list(payload.get("capabilities", [])),
+        triggers=list(payload.get("triggers", [])),
+        permissions=[
+            SkillPermission(
+                capability=str(item.get("capability", "")),
+                scope=str(item.get("scope", "workspace")),
+                mode=str(item.get("mode", "ask")),
+            )
+            for item in list(payload.get("permissions", []))
+            if isinstance(item, dict)
+        ],
         hosts=list(payload.get("hosts", [])),
         dependencies=list(payload.get("dependencies", [])),
         raw=dict(payload.get("raw", {})),

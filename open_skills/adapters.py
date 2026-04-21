@@ -29,6 +29,7 @@ class HostAdapter:
 
     def negotiate(self, skill: SkillPackage) -> CapabilityReport:
         requested = set(skill.metadata.capabilities)
+        requested.update(permission.capability for permission in skill.metadata.permissions)
         supported = sorted(requested & self.context.capabilities)
         missing = sorted(requested - self.context.capabilities)
         return CapabilityReport(supported=supported, missing=missing)

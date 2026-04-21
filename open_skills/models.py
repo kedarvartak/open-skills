@@ -5,6 +5,13 @@ from pathlib import Path
 
 
 @dataclass(slots=True)
+class SkillPermission:
+    capability: str
+    scope: str = "workspace"
+    mode: str = "ask"
+
+
+@dataclass(slots=True)
 class SkillMetadata:
     name: str
     description: str
@@ -14,6 +21,8 @@ class SkillMetadata:
     homepage: str | None = None
     license: str | None = None
     capabilities: list[str] = field(default_factory=list)
+    triggers: list[str] = field(default_factory=list)
+    permissions: list[SkillPermission] = field(default_factory=list)
     hosts: list[str] = field(default_factory=list)
     dependencies: list[str] = field(default_factory=list)
     raw: dict[str, object] = field(default_factory=dict)
