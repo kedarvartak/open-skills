@@ -126,21 +126,64 @@ The signature file is generated from a deterministic digest of every package fil
 - `__pycache__/`
 - `*.pyc`
 
-Current `0.1` signing uses `hmac-sha256` for local trust domains.
+Current signing uses `rsa-sha256-pkcs1-v1_5` public-key signatures.
 
 Signature payload:
 
 ```json
 {
   "signer": "local-dev",
-  "algorithm": "hmac-sha256",
+  "algorithm": "rsa-sha256-pkcs1-v1_5",
+  "public_key_id": "...",
   "package_digest": "...",
   "signature": "...",
-  "signed_at": "2026-04-20T00:00:00+00:00"
+  "signed_at": "2026-04-20T00:00:00+00:00",
+  "provenance": {
+    "repository": "https://example.com/org/skills",
+    "commit": "abc123"
+  }
 }
 ```
 
-This is not yet a public-key marketplace trust model. It is a deterministic package-integrity and local-trust mechanism that gives the registry and adapters something concrete to verify.
+Registries should publish package digests, signature metadata, and provenance alongside each release.
+
+## Registry Distribution
+
+A registry is a directory or remote URL containing:
+
+```text
+index.json
+archives/
+  skill-name/
+    1.0.0.zip
+packages/
+  skill-name/
+    1.0.0/
+```
+
+`index.json` is the marketplace index. Each release should include:
+
+- `package_path`
+- `package_digest`
+- `signature`
+- `provenance`
+- `metadata`
+- `published_at`
+
+Remote registries may be served over `https://` or `file://`. Clients resolve relative `package_path` values against the registry index URL.
+
+## Version Pinning
+
+Installs should write an `open-skills.lock.json` entry that pins:
+
+- skill name
+- version
+- registry
+- package digest
+- signature metadata
+- provenance metadata
+
+This lets projects reproduce exact skill installs without vendoring every skill package into the repository.
 
 ## Execution Model
 
