@@ -1,5 +1,7 @@
 # Open Skills
 
+![Open Skills Banner](./assets/open-skills.png)
+
 Open Skills is a universal framework for portable AI agent skills.
 
 The project exists because agent skills should not be locked to one IDE, model provider, or coding assistant. A skill should be authored once, validated once, and then adapted into tools such as Codex, Claude Code-style runtimes, Cursor, VS Code, or future agent hosts.
