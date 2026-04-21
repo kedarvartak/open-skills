@@ -88,9 +88,20 @@ Compute, sign, and verify a package:
 
 ```bash
 python3 -m open_skills.cli digest ./skills/hello-skill
-python3 -m open_skills.cli sign ./skills/hello-skill --signer local-dev --key dev-secret
-python3 -m open_skills.cli verify ./skills/hello-skill --key dev-secret
+python3 -m open_skills.cli keygen --signer local-dev --private-key .open-skills/local-dev.private.json --public-key .open-skills/local-dev.public.json
+python3 -m open_skills.cli sign ./skills/hello-skill --signer local-dev --private-key .open-skills/local-dev.private.json --provenance repository=https://example.com/open-skills
+python3 -m open_skills.cli verify ./skills/hello-skill --public-key .open-skills/local-dev.public.json
 ```
+
+Publish and install with digest pinning:
+
+```bash
+python3 -m open_skills.cli publish ./skills/hello-skill --provenance repository=https://example.com/open-skills
+python3 -m open_skills.cli search hello
+python3 -m open_skills.cli install hello-skill --public-key .open-skills/local-dev.public.json
+```
+
+`install` writes `open-skills.lock.json` by default so projects can pin exact skill versions and digests without vendoring installed skill folders.
 
 List skills available to the Codex adapter:
 
@@ -132,8 +143,8 @@ By default, the local registry lives at `.open-skills/registry` and installs go 
 
 ## Near-Term Roadmap
 
-1. Add public-key signing, provenance, and trust policies.
-2. Add remote registries and marketplace sync.
+1. Add trust policy files for publisher allowlists and key rotation.
+2. Add marketplace sync commands for authenticated remote registries.
 3. Add host adapters for Claude-style, Codex-style, and editor-extension runtimes.
 4. Add semantic skill matching and capability negotiation.
 5. Add remote registries and marketplace sync.

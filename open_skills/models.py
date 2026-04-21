@@ -57,6 +57,9 @@ class RegistryRelease:
     package_path: str
     published_at: str
     metadata: SkillMetadata
+    package_digest: str | None = None
+    signature: dict[str, object] | None = None
+    provenance: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
