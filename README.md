@@ -2,52 +2,224 @@
 
 Open Skills is a universal framework for portable AI agent skills.
 
-The goal is simple:
+The project exists because agent skills should not be locked to one IDE, model provider, or coding assistant. A skill should be authored once, validated once, and then adapted into tools such as Codex, Claude Code-style runtimes, Cursor, VS Code, or future agent hosts.
 
-- author a skill once
-- validate it with a common toolchain
-- run it across multiple hosts like Claude Code, Codex, Cursor, VS Code, and others
+## Problem
 
-This repository starts with the first practical building blocks:
+Modern coding assistants can use reusable instructions, workflows, scripts, references, and assets. But these skills are usually tied to one host environment.
 
-- a portable skill package layout
-- a lightweight `SKILL.md` metadata contract
-- a Python CLI for discovery and validation
-- a minimal host adapter contract for capability negotiation
-- adapter docs that separate portable skills from host-specific runtime behavior
+That creates several problems:
+
+- Skills are hard to reuse across IDEs and agents.
+- Users cannot easily inspect why a skill activated.
+- Teams have no common packaging, validation, or permission model.
+- Marketplaces become vendor-specific instead of ecosystem-wide.
+- Installed skill folders can bloat project repositories if there is no shared runtime/store model.
+
+Open Skills separates the portable skill package from the host-specific runtime.
 
 ## Core Idea
 
-A skill should be portable at the package level and adaptable at the runtime level.
+A skill has a portable core and host-specific adapters.
 
-Portable pieces:
+```mermaid
+flowchart LR
+    A[Open Skill Package] --> B[Open Skills Runtime]
+    B --> C[Codex Adapter]
+    B --> D[Claude-Style Adapter]
+    B --> E[Cursor Adapter]
+    B --> F[VS Code Adapter]
 
-- skill metadata
-- triggers
-- instructions
-- examples
-- references
-- assets
-- declared capabilities
-- declared permissions
-- optional package signatures
+    C --> G[Codex Context]
+    D --> H[Claude-Style Context]
+    E --> I[Cursor Context]
+    F --> J[VS Code Context]
+```
 
-Host-specific pieces:
+The portable package contains the reusable knowledge. The adapter converts that package into the format and permission model expected by a specific host.
 
-- discovery
-- matching
-- permission prompts
-- tool mapping
-- script execution
-- UI and marketplace integration
+## Skill Package
+
+A minimal skill is a folder with a `SKILL.md` file.
+
+```text
+my-skill/
+  SKILL.md
+  references/
+  scripts/
+  assets/
+```
+
+`SKILL.md` contains metadata and instructions:
+
+```yaml
+---
+name: hello-skill
+description: A minimal example skill.
+version: 0.1.0
+spec_version: 0.1
+capabilities: [read_files]
+triggers:
+  - inspect skill metadata
+permissions:
+  - read_files:workspace:allow
+hosts: [codex, cursor, vscode, claude-code]
+---
+```
+
+The metadata helps the runtime discover, validate, match, and safely materialize the skill.
+
+## Architecture
+
+```mermaid
+flowchart TD
+    A[Skill Author] --> B[Skill Package]
+    B --> C[Validator]
+    C --> D[Registry]
+    D --> E[Installer]
+    E --> F[Skill Store]
+    F --> G[Activation and Matching]
+    G --> H[Permission Negotiation]
+    H --> I[Host Adapter]
+    I --> J[Agent Context]
+```
+
+The main runtime responsibilities are:
+
+| Layer | Responsibility |
+| --- | --- |
+| Loader | Parse `SKILL.md` and package metadata |
+| Validator | Check package structure, names, triggers, and permissions |
+| Registry | Publish, search, and install skill packages |
+| Signing | Produce and verify package digests and signatures |
+| Adapter | Convert portable skills into host-specific context |
+| Codex Adapter | Render Open Skills into Codex-ready prompt/context payloads |
+
+## Why Open Skills Is Better
+
+Open Skills is designed around portability, transparency, and host neutrality.
+
+| Area | Host-Specific Skills | Open Skills |
+| --- | --- | --- |
+| Portability | Usually tied to one assistant or IDE | Designed to work across multiple hosts |
+| Package format | Host-specific conventions | Common `SKILL.md` package contract |
+| Activation | Often implicit or opaque | Trigger and metadata driven, with room for explainable matching |
+| Permissions | Mostly host-defined | Skill-declared permissions plus host negotiation |
+| Installation | Often copied into one tool or repo | Registry/install model with version pinning |
+| Trust | Platform-dependent | Package digests, public-key signatures, and provenance metadata |
+| Adapters | Not reusable across hosts | Thin host adapters over a shared runtime |
+
+The goal is not to replace every IDE integration. The goal is to give every IDE and coding agent a common skill substrate.
+
+## Installation
+
+This project currently uses Python and has no required runtime dependencies outside the standard library.
+
+Install in editable mode:
+
+```bash
+python3 -m pip install -e .
+```
+
+Run directly from the repository:
+
+```bash
+python3 -m open_skills.cli --help
+```
+
+If installed as a package, the console command is:
+
+```bash
+open-skills --help
+```
+
+## Basic Usage
+
+List skills:
+
+```bash
+python3 -m open_skills.cli list ./skills
+```
+
+Inspect metadata:
+
+```bash
+python3 -m open_skills.cli inspect ./skills/hello-skill
+```
+
+Validate a package:
+
+```bash
+python3 -m open_skills.cli validate ./skills/hello-skill
+```
+
+Render a skill for Codex:
+
+```bash
+python3 -m open_skills.cli codex render ./skills/hello-skill
+```
+
+Search a registry:
+
+```bash
+python3 -m open_skills.cli search hello --registry .open-skills/registry
+```
+
+Install a skill:
+
+```bash
+python3 -m open_skills.cli install hello-skill --registry .open-skills/registry
+```
+
+## Trust And Distribution
+
+Open Skills supports package digests, public-key signatures, provenance metadata, zip-based registry releases, and install lockfiles.
+
+```mermaid
+sequenceDiagram
+    participant Author
+    participant Registry
+    participant User
+    participant Host
+
+    Author->>Author: Build skill package
+    Author->>Author: Sign package
+    Author->>Registry: Publish archive and metadata
+    User->>Registry: Search and install skill
+    User->>User: Verify digest and signature
+    User->>Host: Adapter materializes skill context
+```
+
+Generate a keypair:
+
+```bash
+python3 -m open_skills.cli keygen \
+  --signer local-dev \
+  --private-key .open-skills/local-dev.private.json \
+  --public-key .open-skills/local-dev.public.json
+```
+
+Sign and verify:
+
+```bash
+python3 -m open_skills.cli sign ./skills/hello-skill \
+  --signer local-dev \
+  --private-key .open-skills/local-dev.private.json \
+  --provenance repository=https://example.com/open-skills
+
+python3 -m open_skills.cli verify ./skills/hello-skill \
+  --public-key .open-skills/local-dev.public.json
+```
+
+Important: the current pure-Python RSA implementation proves the trust model, but production releases should use an audited signing stack such as `cryptography`, Sigstore, or Minisign.
 
 ## Repository Layout
 
 ```text
 docs/
-  spec.md
-  architecture.md
   adapters.md
+  architecture.md
+  spec.md
 open_skills/
   __init__.py
   adapters.py
@@ -61,90 +233,23 @@ open_skills/
 skills/
   hello-skill/
     SKILL.md
+TODO.md
 pyproject.toml
 ```
 
-## Quick Start
+## Current Status
 
-List skills in a directory:
+Open Skills currently includes:
 
-```bash
-python3 -m open_skills.cli list ./skills
-```
+- A portable `SKILL.md` package format.
+- Metadata parsing for triggers, permissions, hosts, capabilities, and dependencies.
+- Package validation.
+- Local and remote registry index support.
+- Publish, search, and install commands.
+- Zip release artifacts and install lockfiles.
+- Public-key package signing and verification.
+- A Codex adapter that renders portable skills into Codex-ready context.
 
-Validate a skill package:
+The project is still early. The main product priority is improving the core skill runtime: activation quality, progressive context loading, authoring tools, adapter consistency, and permission UX.
 
-```bash
-python3 -m open_skills.cli validate ./skills/hello-skill
-```
-
-Show parsed metadata:
-
-```bash
-python3 -m open_skills.cli inspect ./skills/hello-skill
-```
-
-Compute, sign, and verify a package:
-
-```bash
-python3 -m open_skills.cli digest ./skills/hello-skill
-python3 -m open_skills.cli keygen --signer local-dev --private-key .open-skills/local-dev.private.json --public-key .open-skills/local-dev.public.json
-python3 -m open_skills.cli sign ./skills/hello-skill --signer local-dev --private-key .open-skills/local-dev.private.json --provenance repository=https://example.com/open-skills
-python3 -m open_skills.cli verify ./skills/hello-skill --public-key .open-skills/local-dev.public.json
-```
-
-Publish and install with digest pinning:
-
-```bash
-python3 -m open_skills.cli publish ./skills/hello-skill --provenance repository=https://example.com/open-skills
-python3 -m open_skills.cli search hello
-python3 -m open_skills.cli install hello-skill --public-key .open-skills/local-dev.public.json
-```
-
-`install` writes `open-skills.lock.json` by default so projects can pin exact skill versions and digests without vendoring installed skill folders.
-
-List skills available to the Codex adapter:
-
-```bash
-python3 -m open_skills.cli codex list --skills-dir ./installed-skills
-```
-
-Match installed skills for a task:
-
-```bash
-python3 -m open_skills.cli codex match "validate a portable skill" --skills-dir ./installed-skills
-```
-
-Render a skill into Codex-ready context:
-
-```bash
-python3 -m open_skills.cli codex render hello-skill --skills-dir ./installed-skills
-```
-
-Publish a skill to the local registry:
-
-```bash
-python3 -m open_skills.cli publish ./skills/hello-skill
-```
-
-Search the local registry:
-
-```bash
-python3 -m open_skills.cli search hello
-```
-
-Install from the local registry:
-
-```bash
-python3 -m open_skills.cli install hello-skill
-```
-
-By default, the local registry lives at `.open-skills/registry` and installs go to `./installed-skills`.
-
-## Near-Term Roadmap
-
-1. Add trust policy files for publisher allowlists and key rotation.
-2. Add marketplace sync commands for authenticated remote registries.
-3. Add host adapters for Claude-style, Codex-style, and editor-extension runtimes.
-4. Add semantic skill matching and capability negotiation.
-5. Add remote registries and marketplace sync.
+See [TODO.md](/home/kedar/Desktop/Projects/open-skills/TODO.md) for the detailed implementation plan.
