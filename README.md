@@ -155,6 +155,12 @@ Validate a package:
 python3 -m open_skills.cli validate ./skills/hello-skill
 ```
 
+Activate skills for a task:
+
+```bash
+python3 -m open_skills.cli activate "inspect skill metadata" --skills-dir ./skills --host codex --explain
+```
+
 Render a skill for Codex:
 
 ```bash
@@ -224,6 +230,7 @@ docs/
   spec.md
 open_skills/
   __init__.py
+  activation.py
   adapters.py
   cli.py
   codex_adapter.py
@@ -244,6 +251,7 @@ pyproject.toml
 Open Skills currently includes:
 
 - A portable `SKILL.md` package format.
+- Explainable skill activation with host filters and activation thresholds.
 - Metadata parsing for triggers, permissions, hosts, capabilities, and dependencies.
 - Package validation.
 - Local and remote registry index support.

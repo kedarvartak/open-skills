@@ -48,6 +48,8 @@ The goal is not to clone Claude Code. The goal is to keep the simplicity while a
 
 Build a real activation layer that decides which skills apply to a user task.
 
+Status: initial implementation exists via `python3 -m open_skills.cli activate`.
+
 Why this matters:
 
 If activation is weak, the whole product feels like a folder manager. The magic is not the `SKILL.md` file. The magic is knowing when and how to use it.
