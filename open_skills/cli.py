@@ -5,6 +5,7 @@ import json
 import sys
 from pathlib import Path
 
+from .activation import THRESHOLDS, ActivationMatch, activate_skills
 from .codex_adapter import CodexAdapter, DEFAULT_CODEX_CAPABILITIES
 from .loader import SkillLoadError, discover_skills, load_skill
 from .registry import (
@@ -36,6 +37,24 @@ def _build_parser() -> argparse.ArgumentParser:
 
     validate_parser = subparsers.add_parser("validate", help="Validate a skill package")
     validate_parser.add_argument("path", help="Path to a skill directory")
+
+    activate_parser = subparsers.add_parser("activate", help="Rank skills for a task")
+    activate_parser.add_argument("task", help="Task description to match against skills")
+    activate_parser.add_argument(
+        "--skills-dir",
+        default="./skills",
+        help="Directory that contains skill folders",
+    )
+    activate_parser.add_argument("--host", help="Only activate skills compatible with this host")
+    activate_parser.add_argument(
+        "--threshold",
+        choices=sorted(THRESHOLDS),
+        default="balanced",
+        help="Activation strictness",
+    )
+    activate_parser.add_argument("--limit", type=int, default=5, help="Maximum matches to show")
+    activate_parser.add_argument("--explain", action="store_true", help="Print match explanations")
+    activate_parser.add_argument("--json", action="store_true", help="Print activation output as JSON")
 
     digest_parser = subparsers.add_parser("digest", help="Compute a deterministic skill package digest")
     digest_parser.add_argument("path", help="Path to a skill directory")
@@ -202,6 +221,58 @@ def _cmd_validate(path: str) -> int:
         return 1
 
     print(f"{Path(path).resolve()}: valid")
+    return 0
+
+
+def _cmd_activate(
+    task: str,
+    skills_dir: str,
+    host: str | None,
+    threshold: str,
+    limit: int,
+    explain: bool,
+    as_json: bool,
+) -> int:
+    try:
+        matches = activate_skills(
+            task,
+            skills_dir,
+            host=host,
+            threshold=threshold,
+            limit=limit,
+        )
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+
+    if as_json:
+        print(json.dumps([_activation_match_payload(match) for match in matches], indent=2))
+        return 0
+
+    if not matches:
+        host_hint = f" for host `{host}`" if host else ""
+        print(f"no skills activated{host_hint} at `{threshold}` threshold")
+        return 0
+
+    for match in matches:
+        metadata = match.skill.metadata
+        print(f"{metadata.name}@{metadata.version} score={match.score:.2f}")
+        if explain:
+            if match.matched_triggers:
+                print(f"  matched triggers: {', '.join(match.matched_triggers)}")
+            if match.matched_permissions:
+                print(f"  matched permissions: {', '.join(match.matched_permissions)}")
+            for field, values in match.matched_fields.items():
+                if field == "triggers" and match.matched_triggers:
+                    continue
+                if values:
+                    print(f"  matched {field}: {', '.join(values)}")
+            for reason in match.reasons:
+                print(f"  reason: {reason}")
+            for warning in match.warnings:
+                print(f"  warning: {warning}")
+        else:
+            print(f"  {metadata.description}")
     return 0
 
 
@@ -402,6 +473,23 @@ def _cmd_install(
     return 0
 
 
+def _activation_match_payload(match: ActivationMatch) -> dict[str, object]:
+    return {
+        "name": match.skill.metadata.name,
+        "version": match.skill.metadata.version,
+        "root": str(match.skill.root),
+        "score": match.score,
+        "threshold": match.threshold,
+        "description": match.skill.metadata.description,
+        "hosts": match.skill.metadata.hosts,
+        "matched_triggers": match.matched_triggers,
+        "matched_permissions": match.matched_permissions,
+        "matched_fields": match.matched_fields,
+        "reasons": match.reasons,
+        "warnings": match.warnings,
+    }
+
+
 def _parse_key_values(values: list[str]) -> dict[str, str]:
     result: dict[str, str] = {}
     for value in values:
@@ -422,6 +510,16 @@ def main() -> int:
         return _cmd_inspect(args.path)
     if args.command == "validate":
         return _cmd_validate(args.path)
+    if args.command == "activate":
+        return _cmd_activate(
+            args.task,
+            args.skills_dir,
+            args.host,
+            args.threshold,
+            args.limit,
+            args.explain,
+            args.json,
+        )
     if args.command == "digest":
         return _cmd_digest(args.path)
     if args.command == "keygen":

@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from .activation import activate_skills
 from .adapters import CapabilityReport, HostAdapter, HostContext
 from .loader import SkillLoadError, discover_skills, load_skill
 from .models import SkillPackage
@@ -59,11 +60,14 @@ class CodexAdapter(HostAdapter):
         return load_skill(named_candidate)
 
     def match(self, task: str, skills_dir: str | Path, limit: int = 5) -> list[SkillPackage]:
-        skills = self.discover(skills_dir)
-        scored = [(self._score_skill(task, skill), skill) for skill in skills]
-        matches = [item for item in scored if item[0] > 0]
-        matches.sort(key=lambda item: item[0], reverse=True)
-        return [skill for _, skill in matches[:limit]]
+        matches = activate_skills(
+            task,
+            skills_dir,
+            host=self.context.name,
+            threshold="broad",
+            limit=limit,
+        )
+        return [match.skill for match in matches]
 
     def materialize(self, skill: SkillPackage) -> CodexSkillContext:
         capability_report = self.negotiate(skill)
@@ -172,30 +176,6 @@ class CodexAdapter(HostAdapter):
         if script_files and "run_shell" not in self.context.capabilities:
             warnings.append("This skill includes scripts, but run_shell is not available.")
         return warnings
-
-    def _score_skill(self, task: str, skill: SkillPackage) -> int:
-        terms = {term.lower() for term in task.replace("-", " ").split() if term.strip()}
-        if not terms:
-            return 0
-
-        metadata = skill.metadata
-        haystack = " ".join(
-            [
-                metadata.name.replace("-", " "),
-                metadata.description,
-                " ".join(metadata.triggers),
-                " ".join(metadata.capabilities),
-                " ".join(permission.capability for permission in metadata.permissions),
-                " ".join(metadata.hosts),
-            ]
-        ).lower()
-
-        score = sum(1 for term in terms if term in haystack)
-        score += sum(3 for trigger in metadata.triggers if trigger.lower() in task.lower())
-        if metadata.name.lower() in task.lower():
-            score += 5
-        return score
-
 
 def _list_files(path: Path) -> list[Path]:
     if not path.exists() or not path.is_dir():
