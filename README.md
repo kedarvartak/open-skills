@@ -230,15 +230,25 @@ docs/
   spec.md
 open_skills/
   __init__.py
-  activation.py
-  adapters.py
+  activation/
+    README.md
+    engine.py
+  adapters/
+    README.md
+    base.py
+    codex.py
   cli.py
-  codex_adapter.py
-  loader.py
-  models.py
-  registry.py
-  signing.py
-  validator.py
+  core/
+    README.md
+    loader.py
+    models.py
+    validator.py
+  registry/
+    README.md
+    store.py
+  trust/
+    README.md
+    signing.py
 skills/
   hello-skill/
     SKILL.md
@@ -259,6 +269,8 @@ Open Skills currently includes:
 - Zip release artifacts and install lockfiles.
 - Public-key package signing and verification.
 - A Codex adapter that renders portable skills into Codex-ready context.
+
+The `skills/` directory contains source/example skills. Runtime installs are generated under `.open-skills/installed` by default and are ignored by git.
 
 The project is still early. The main product priority is improving the core skill runtime: activation quality, progressive context loading, authoring tools, adapter consistency, and permission UX.
 

@@ -3,11 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from .activation import activate_skills
-from .adapters import CapabilityReport, HostAdapter, HostContext
-from .loader import SkillLoadError, discover_skills, load_skill
-from .models import SkillPackage
-from .validator import validate_skill
+from ..activation import activate_skills
+from ..core.loader import SkillLoadError, discover_skills, load_skill
+from ..core.models import SkillPackage
+from ..core.validator import validate_skill
+from .base import CapabilityReport, HostAdapter, HostContext
 
 DEFAULT_CODEX_CAPABILITIES = {
     "read_files",

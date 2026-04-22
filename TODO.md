@@ -258,7 +258,7 @@ Move installed skills out of project repos by default.
 
 Why this matters:
 
-Repo-local `installed-skills/` is fine for development, but users should not have every project bloated with installed packages.
+Repo-local generated installs are fine for development, but users should not have every project bloated with installed packages. The current local default is `.open-skills/installed`, which is hidden and ignored by git.
 
 Core features:
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from .models import SkillPackage
+from ..core.models import SkillPackage
 
 
 @dataclass(slots=True)
