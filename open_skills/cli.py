@@ -6,8 +6,8 @@ import sys
 from pathlib import Path
 
 from .activation import THRESHOLDS, ActivationMatch, activate_skills
-from .codex_adapter import CodexAdapter, DEFAULT_CODEX_CAPABILITIES
-from .loader import SkillLoadError, discover_skills, load_skill
+from .adapters import CodexAdapter, DEFAULT_CODEX_CAPABILITIES
+from .core import SkillLoadError, discover_skills, load_skill, validate_skill
 from .registry import (
     RegistryError,
     default_registry_path,
@@ -15,14 +15,13 @@ from .registry import (
     publish_skill,
     search_registry,
 )
-from .signing import (
+from .trust import (
     SigningError,
     compute_package_digest,
     generate_keypair,
     sign_package,
     verify_package_signature,
 )
-from .validator import validate_skill
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -85,7 +84,7 @@ def _build_parser() -> argparse.ArgumentParser:
     codex_list_parser = codex_subparsers.add_parser("list", help="List Codex-compatible skills")
     codex_list_parser.add_argument(
         "--skills-dir",
-        default="./installed-skills",
+        default="./.open-skills/installed",
         help="Directory that contains installed skill folders",
     )
 
@@ -93,7 +92,7 @@ def _build_parser() -> argparse.ArgumentParser:
     codex_match_parser.add_argument("task", help="Task description to match against installed skills")
     codex_match_parser.add_argument(
         "--skills-dir",
-        default="./installed-skills",
+        default="./.open-skills/installed",
         help="Directory that contains installed skill folders",
     )
     codex_match_parser.add_argument("--limit", type=int, default=5, help="Maximum matches to show")
@@ -105,7 +104,7 @@ def _build_parser() -> argparse.ArgumentParser:
     codex_render_parser.add_argument("skill", help="Skill name or path")
     codex_render_parser.add_argument(
         "--skills-dir",
-        default="./installed-skills",
+        default="./.open-skills/installed",
         help="Directory that contains installed skill folders",
     )
     codex_render_parser.add_argument(
@@ -152,7 +151,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     install_parser.add_argument(
         "--dest",
-        default=str(Path("./installed-skills").resolve()),
+        default=str(Path("./.open-skills/installed").resolve()),
         help="Directory where the skill should be installed",
     )
     install_parser.add_argument("--public-key", help="Verify the installed package with this public key")

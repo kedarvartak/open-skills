@@ -10,10 +10,10 @@ from urllib.parse import urljoin, urlparse
 from urllib.request import urlopen
 from zipfile import ZipFile, ZIP_DEFLATED
 
-from .loader import SkillLoadError, load_skill
-from .models import RegistryRelease, RegistrySkillRecord, SkillMetadata, SkillPackage, SkillPermission
-from .signing import compute_package_digest, read_signature, verify_package_signature
-from .validator import validate_skill
+from ..core.loader import SkillLoadError, load_skill
+from ..core.models import RegistryRelease, RegistrySkillRecord, SkillMetadata, SkillPackage, SkillPermission
+from ..core.validator import validate_skill
+from ..trust.signing import compute_package_digest, read_signature, verify_package_signature
 
 LOCKFILE_NAME = "open-skills.lock.json"
 

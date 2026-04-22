@@ -30,7 +30,7 @@ Wraps the skill package into:
 - capability checks against local execution tools
 - a local workspace resolver for assets and references
 
-The current implementation lives in `open_skills/codex_adapter.py`.
+The current implementation lives in `open_skills/adapters/codex.py`.
 
 It supports:
 

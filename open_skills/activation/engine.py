@@ -4,9 +4,9 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .loader import SkillLoadError, discover_skills, load_skill
-from .models import SkillPackage
-from .validator import validate_skill
+from ..core.loader import SkillLoadError, discover_skills, load_skill
+from ..core.models import SkillPackage
+from ..core.validator import validate_skill
 
 THRESHOLDS = {
     "broad": 0.20,

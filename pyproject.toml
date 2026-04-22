@@ -15,5 +15,5 @@ authors = [
 [project.scripts]
 open-skills = "open_skills.cli:main"
 
-[tool.setuptools]
-packages = ["open_skills"]
+[tool.setuptools.packages.find]
+include = ["open_skills*"]
