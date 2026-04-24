@@ -5,8 +5,8 @@ from pathlib import Path
 
 from .activation import activate_skills
 from .adapters import CapabilityReport, HostAdapter, HostContext
-from .loader import SkillLoadError, discover_skills, load_skill
-from .models import SkillPackage
+from .loader import SkillLoadError, discover_skills, load_skill, materialize_skill
+from .models import SkillMaterialization, SkillPackage
 from .validator import validate_skill
 
 DEFAULT_CODEX_CAPABILITIES = {
@@ -23,6 +23,7 @@ class CodexSkillContext:
     prompt: str
     capability_report: CapabilityReport
     supports_host: bool
+    materialization: SkillMaterialization
     references: list[Path]
     scripts: list[Path]
     assets: list[Path]
@@ -69,20 +70,26 @@ class CodexAdapter(HostAdapter):
         )
         return [match.skill for match in matches]
 
-    def materialize(self, skill: SkillPackage) -> CodexSkillContext:
+    def materialize(
+        self,
+        skill: SkillPackage,
+        *,
+        task: str | None = None,
+        stage: str = "references",
+        max_chars: int | None = None,
+    ) -> CodexSkillContext:
         capability_report = self.negotiate(skill)
         supports_host = self.supports_host(skill)
-        references = _list_files(skill.references_dir)
-        scripts = _list_files(skill.scripts_dir)
-        assets = _list_files(skill.assets_dir)
-        warnings = self._warnings(skill, capability_report, supports_host)
+        materialization = materialize_skill(skill, stage=stage, task=task, max_chars=max_chars)
+        references = [resource.path for resource in materialization.references]
+        scripts = [resource.path for resource in materialization.scripts]
+        assets = [resource.path for resource in materialization.assets]
+        warnings = self._warnings(skill, capability_report, supports_host) + materialization.warnings
         prompt = self.render_prompt(
             skill,
             capability_report=capability_report,
             supports_host=supports_host,
-            references=references,
-            scripts=scripts,
-            assets=assets,
+            materialization=materialization,
             warnings=warnings,
         )
         return CodexSkillContext(
@@ -90,6 +97,7 @@ class CodexAdapter(HostAdapter):
             prompt=prompt,
             capability_report=capability_report,
             supports_host=supports_host,
+            materialization=materialization,
             references=references,
             scripts=scripts,
             assets=assets,
@@ -102,9 +110,7 @@ class CodexAdapter(HostAdapter):
         *,
         capability_report: CapabilityReport,
         supports_host: bool,
-        references: list[Path],
-        scripts: list[Path],
-        assets: list[Path],
+        materialization: SkillMaterialization,
         warnings: list[str],
     ) -> str:
         metadata = skill.metadata
@@ -126,6 +132,10 @@ class CodexAdapter(HostAdapter):
             f"- Supported capabilities: {_join_or_none(capability_report.supported)}",
             f"- Missing capabilities: {_join_or_none(capability_report.missing)}",
             f"- Host supported: {'yes' if supports_host else 'no'}",
+            f"- Materialization stage: {materialization.stage}",
+            f"- Task hint: {materialization.task or 'none'}",
+            f"- Materialization budget: {materialization.max_chars if materialization.max_chars is not None else 'none'}",
+            f"- Materialized chars: {materialization.total_chars}",
             "",
         ]
 
@@ -145,15 +155,15 @@ class CodexAdapter(HostAdapter):
                 "- Treat permission mode `deny` as unavailable even if the host supports the capability.",
                 "- Keep file access scoped to the current workspace and the listed skill package paths.",
                 "",
-                "## Supporting Files",
+                "## Progressive Context",
                 "",
-                f"- References: {_format_paths(references)}",
-                f"- Scripts: {_format_paths(scripts)}",
-                f"- Assets: {_format_paths(assets)}",
+                f"- References: {_format_materialized_resources(materialization.references)}",
+                f"- Scripts: {_format_materialized_resources(materialization.scripts)}",
+                f"- Assets: {_format_materialized_resources(materialization.assets)}",
                 "",
                 "## Skill Instructions",
                 "",
-                skill.instructions,
+                materialization.instructions or "(not materialized at this stage)",
             ]
         )
         return "\n".join(lines).strip() + "\n"
@@ -191,6 +201,17 @@ def _format_paths(paths: list[Path]) -> str:
     if not paths:
         return "none"
     return ", ".join(str(path) for path in paths)
+
+
+def _format_materialized_resources(resources: list[object]) -> str:
+    if not resources:
+        return "none"
+    formatted: list[str] = []
+    for resource in resources:
+        status = "selected" if resource.selected else "available"
+        summary = f" ({resource.summary})" if resource.summary else ""
+        formatted.append(f"{resource.relative_path} [{status}]{summary}")
+    return ", ".join(formatted)
 
 
 def _format_permissions(permissions: list[object]) -> str:

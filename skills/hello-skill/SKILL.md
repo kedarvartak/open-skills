@@ -14,6 +14,13 @@ permissions:
   - read_files:workspace:allow
 hosts: [claude-code, codex, cursor, vscode]
 dependencies: []
+references:
+  - path: references/validation.md
+    when: validate package schema structure metadata
+    summary: Validation checklist for portable Open Skills packages.
+  - path: references/materialization.md
+    when: materialize context progressive loader staged loading budget references
+    summary: Guidance for progressive context loading and staged materialization.
 ---
 
 # Hello Skill
@@ -37,4 +44,4 @@ When activated, the host should:
 
 ## Notes
 
-This skill intentionally does not require scripts or references so it can run as the simplest possible compatibility test.
+This skill includes lightweight reference manifests so hosts can test progressive loading without flooding context up front.

@@ -7,7 +7,7 @@ from pathlib import Path
 
 from .activation import THRESHOLDS, ActivationMatch, activate_skills
 from .codex_adapter import CodexAdapter, DEFAULT_CODEX_CAPABILITIES
-from .loader import SkillLoadError, discover_skills, load_skill
+from .loader import MATERIALIZATION_STAGES, SkillLoadError, discover_skills, load_skill, materialize_skill
 from .registry import (
     RegistryError,
     default_registry_path,
@@ -34,6 +34,25 @@ def _build_parser() -> argparse.ArgumentParser:
 
     inspect_parser = subparsers.add_parser("inspect", help="Inspect a skill package")
     inspect_parser.add_argument("path", help="Path to a skill directory")
+
+    materialize_parser = subparsers.add_parser(
+        "materialize",
+        help="Materialize staged skill context",
+    )
+    materialize_parser.add_argument("path", help="Path to a skill directory")
+    materialize_parser.add_argument(
+        "--stage",
+        choices=MATERIALIZATION_STAGES,
+        default="metadata",
+        help="How much of the skill context to materialize",
+    )
+    materialize_parser.add_argument("--task", help="Optional task hint used to select relevant resources")
+    materialize_parser.add_argument(
+        "--max-chars",
+        type=int,
+        help="Optional maximum number of characters to include in materialized content",
+    )
+    materialize_parser.add_argument("--json", action="store_true", help="Print materialization output as JSON")
 
     validate_parser = subparsers.add_parser("validate", help="Validate a skill package")
     validate_parser.add_argument("path", help="Path to a skill directory")
@@ -113,6 +132,18 @@ def _build_parser() -> argparse.ArgumentParser:
         action="append",
         choices=sorted(DEFAULT_CODEX_CAPABILITIES | {"network_access", "mcp_access"}),
         help="Override Codex capabilities; may be passed multiple times",
+    )
+    codex_render_parser.add_argument("--task", help="Optional task hint used for progressive loading")
+    codex_render_parser.add_argument(
+        "--stage",
+        choices=MATERIALIZATION_STAGES,
+        default="references",
+        help="How much skill context should be materialized for Codex",
+    )
+    codex_render_parser.add_argument(
+        "--max-chars",
+        type=int,
+        help="Optional maximum number of characters to include in materialized content",
     )
     codex_render_parser.add_argument("--json", action="store_true", help="Print adapter output as JSON")
     publish_parser = subparsers.add_parser("publish", help="Publish a skill to a local registry")
@@ -202,6 +233,25 @@ def _cmd_inspect(path: str) -> int:
         "hosts": skill.metadata.hosts,
         "dependencies": skill.metadata.dependencies,
     }
+    print(json.dumps(payload, indent=2))
+    return 0
+
+
+def _cmd_materialize(
+    path: str,
+    stage: str,
+    task: str | None,
+    max_chars: int | None,
+    as_json: bool,
+) -> int:
+    try:
+        skill = load_skill(path)
+        materialization = materialize_skill(skill, stage=stage, task=task, max_chars=max_chars)
+    except SkillLoadError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+
+    payload = _materialization_payload(materialization)
     print(json.dumps(payload, indent=2))
     return 0
 
@@ -355,6 +405,9 @@ def _cmd_codex_render(
     skill_ref: str,
     skills_dir: str,
     capabilities: list[str] | None,
+    task: str | None,
+    stage: str,
+    max_chars: int | None,
     as_json: bool,
 ) -> int:
     adapter = CodexAdapter(capabilities=set(capabilities) if capabilities else None)
@@ -371,7 +424,7 @@ def _cmd_codex_render(
             print(f"- {error}", file=sys.stderr)
         return 1
 
-    context = adapter.materialize(skill)
+    context = adapter.materialize(skill, task=task, stage=stage, max_chars=max_chars)
     if as_json:
         payload = {
             "name": skill.metadata.name,
@@ -389,9 +442,7 @@ def _cmd_codex_render(
             "supports_host": context.supports_host,
             "supported_capabilities": context.capability_report.supported,
             "missing_capabilities": context.capability_report.missing,
-            "references": [str(path) for path in context.references],
-            "scripts": [str(path) for path in context.scripts],
-            "assets": [str(path) for path in context.assets],
+            "materialization": _materialization_payload(context.materialization),
             "warnings": context.warnings,
             "prompt": context.prompt,
         }
@@ -490,6 +541,37 @@ def _activation_match_payload(match: ActivationMatch) -> dict[str, object]:
     }
 
 
+def _materialized_resource_payload(resource: object) -> dict[str, object]:
+    return {
+        "path": str(resource.path),
+        "relative_path": resource.relative_path,
+        "kind": resource.kind,
+        "when": resource.when,
+        "summary": resource.summary,
+        "size_chars": resource.size_chars,
+        "selected": resource.selected,
+        "content": resource.content,
+        "truncated": resource.truncated,
+    }
+
+
+def _materialization_payload(materialization: object) -> dict[str, object]:
+    return {
+        "name": materialization.skill.metadata.name,
+        "root": str(materialization.skill.root),
+        "stage": materialization.stage,
+        "task": materialization.task,
+        "max_chars": materialization.max_chars,
+        "total_chars": materialization.total_chars,
+        "metadata": materialization.metadata,
+        "instructions": materialization.instructions,
+        "references": [_materialized_resource_payload(resource) for resource in materialization.references],
+        "assets": [_materialized_resource_payload(resource) for resource in materialization.assets],
+        "scripts": [_materialized_resource_payload(resource) for resource in materialization.scripts],
+        "warnings": materialization.warnings,
+    }
+
+
 def _parse_key_values(values: list[str]) -> dict[str, str]:
     result: dict[str, str] = {}
     for value in values:
@@ -508,6 +590,14 @@ def main() -> int:
         return _cmd_list(args.path)
     if args.command == "inspect":
         return _cmd_inspect(args.path)
+    if args.command == "materialize":
+        return _cmd_materialize(
+            args.path,
+            args.stage,
+            args.task,
+            args.max_chars,
+            args.json,
+        )
     if args.command == "validate":
         return _cmd_validate(args.path)
     if args.command == "activate":
@@ -534,7 +624,15 @@ def main() -> int:
         if args.codex_command == "match":
             return _cmd_codex_match(args.task, args.skills_dir, args.limit)
         if args.codex_command == "render":
-            return _cmd_codex_render(args.skill, args.skills_dir, args.capability, args.json)
+            return _cmd_codex_render(
+                args.skill,
+                args.skills_dir,
+                args.capability,
+                args.task,
+                args.stage,
+                args.max_chars,
+                args.json,
+            )
     if args.command == "publish":
         return _cmd_publish(args.path, args.registry, args.force, args.provenance)
     if args.command == "search":

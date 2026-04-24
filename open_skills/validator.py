@@ -57,4 +57,17 @@ def validate_skill(skill: SkillPackage) -> list[str]:
         if path.exists() and not path.is_dir():
             errors.append(f"{dirname}/ must be a directory when present")
 
+    for label, manifests in (
+        ("reference", skill.reference_manifests),
+        ("script", skill.script_manifests),
+        ("asset", skill.asset_manifests),
+    ):
+        for manifest in manifests:
+            if not manifest.path:
+                errors.append(f"{label} manifest entries must include a path")
+                continue
+            resource_path = skill.root / manifest.path
+            if not resource_path.exists():
+                errors.append(f"{label} manifest path does not exist: {manifest.path}")
+
     return errors

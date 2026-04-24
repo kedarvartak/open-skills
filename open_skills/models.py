@@ -33,6 +33,9 @@ class SkillPackage:
     root: Path
     metadata: SkillMetadata
     instructions: str
+    reference_manifests: list["SkillResourceManifest"] = field(default_factory=list)
+    script_manifests: list["SkillResourceManifest"] = field(default_factory=list)
+    asset_manifests: list["SkillResourceManifest"] = field(default_factory=list)
 
     @property
     def skill_file(self) -> Path:
@@ -67,3 +70,38 @@ class RegistrySkillRecord:
     name: str
     latest_version: str
     versions: dict[str, RegistryRelease] = field(default_factory=dict)
+
+
+@dataclass(slots=True)
+class SkillResourceManifest:
+    path: str
+    when: str | None = None
+    summary: str | None = None
+
+
+@dataclass(slots=True)
+class MaterializedResource:
+    path: Path
+    relative_path: str
+    kind: str
+    when: str | None = None
+    summary: str | None = None
+    size_chars: int = 0
+    selected: bool = False
+    content: str | None = None
+    truncated: bool = False
+
+
+@dataclass(slots=True)
+class SkillMaterialization:
+    stage: str
+    skill: SkillPackage
+    task: str | None = None
+    max_chars: int | None = None
+    metadata: dict[str, object] = field(default_factory=dict)
+    instructions: str | None = None
+    references: list[MaterializedResource] = field(default_factory=list)
+    assets: list[MaterializedResource] = field(default_factory=list)
+    scripts: list[MaterializedResource] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    total_chars: int = 0

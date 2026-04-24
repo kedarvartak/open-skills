@@ -167,6 +167,15 @@ Render a skill for Codex:
 python3 -m open_skills.cli codex render ./skills/hello-skill
 ```
 
+Materialize staged context with a task hint and budget:
+
+```bash
+python3 -m open_skills.cli materialize ./skills/hello-skill \
+  --stage references \
+  --task "validate package metadata" \
+  --max-chars 1200
+```
+
 Search a registry:
 
 ```bash
@@ -252,6 +261,7 @@ Open Skills currently includes:
 
 - A portable `SKILL.md` package format.
 - Explainable skill activation with host filters and activation thresholds.
+- Progressive staged materialization for metadata, instructions, references, assets, and scripts.
 - Metadata parsing for triggers, permissions, hosts, capabilities, and dependencies.
 - Package validation.
 - Local and remote registry index support.
